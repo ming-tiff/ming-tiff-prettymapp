@@ -9,7 +9,7 @@ import random
 st.set_page_config(page_title="Peta Cantik", page_icon="🗺️", layout="wide")
 
 st.title('🗺️ Peta Cantik')
-st.write('Peta interaktif bergaya retro — powered by OpenStreetMap.')
+st.write('Interactive retro-style map — powered by OpenStreetMap.')
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
@@ -81,23 +81,23 @@ def bld_color(tags):
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("⚙️ Tetapan")
-    mode = st.selectbox("Mod Peta", [
-        "🎨 Peta Retro Bandar",
-        "📍 Peta Penanda",
-        "🌍 Peta Koropleth",
-        "🛣️ Perancang Laluan",
-        "🔍 Penjelajah POI",
+    st.header("⚙️ Settings")
+    mode = st.selectbox("Map Mode", [
+        "🎨 Retro City Map",
+        "📍 Marker Map",
+        "🌍 Choropleth Map",
+        "🛣️ Route Planner",
+        "🔍 POI Explorer",
     ])
-    zoom = st.slider("Zum Lalai", 2, 18, 14)
-    tile = st.selectbox("Lapisan Peta", {
+    zoom = st.slider("Default Zoom", 2, 18, 14)
+    tile = st.selectbox("Map Layer", {
         "CartoDB Positron":  "CartoDB positron",
-        "CartoDB Gelap":     "CartoDB dark_matter",
+        "CartoDB Dark":     "CartoDB dark_matter",
         "OpenStreetMap":     "OpenStreetMap",
     }.keys())
     TILES = {
         "CartoDB Positron":  "CartoDB positron",
-        "CartoDB Gelap":     "CartoDB dark_matter",
+        "CartoDB Dark":     "CartoDB dark_matter",
         "OpenStreetMap":     "OpenStreetMap",
     }
     tile_layer = TILES[tile]
@@ -108,19 +108,21 @@ st.divider()
 # ════════════════════════════════════════════════════════════════════════════════
 # 🎨  RETRO BANDAR
 # ════════════════════════════════════════════════════════════════════════════════
-if mode == "🎨 Peta Retro Bandar":
-    st.subheader("🎨 Peta Retro Bandar")
-    st.caption("Bangunan OSM dicat dengan palet warna hangat — krim, oren, merah.")
+if mode == "🎨 Retro City Map":
+    st.subheader("🎨 Retro City Map")
+    st.caption("OSM buildings painted with a warm retro palette — cream, orange, red.")
 
     col1, col2 = st.columns([1, 2.5])
     with col1:
-        city  = st.text_input("Lokasi", "Kuala Lumpur City Centre, Malaysia")
-        rad   = st.slider("Jejari (m)", 100, 1200, 400, 50)
-        tips  = st.checkbox("Tunjuk tooltip bangunan", True)
-        st.markdown("**Palet warna**")
-        legend = [("#f5e6a3","Industri"),("#f0c070","Kediaman"),
-                  ("#f0a040","Pangsapuri"),("#e06820","Komersial"),
-                  ("#c83010","Runcit / Hotel"),("#a01808","Hospital / Gereja")]
+        st.markdown("**📍 Centre Coordinates**")
+        lat = st.number_input("Latitude", value=3.1390, format="%.6f", key="retro_lat")
+        lon = st.number_input("Longitude", value=101.6869, format="%.6f", key="retro_lon")
+        rad   = st.slider("Radius (m)", 100, 1200, 400, 50)
+        tips  = st.checkbox("Show building tooltips", True)
+        st.markdown("**Colour palette**")
+        legend = [("#f5e6a3","Industrialal"),("#f0c070","Residential"),
+                  ("#f0a040","Apartments"),("#e06820","Commercial"),
+                  ("#c83010","Retail / Hotel"),("#a01808","Hospital / Church")]
         for hx, lb in legend:
             st.markdown(
                 f'<span style="background:{hx};padding:2px 10px;border-radius:3px;'
@@ -128,12 +130,7 @@ if mode == "🎨 Peta Retro Bandar":
                 unsafe_allow_html=True)
 
     with col2:
-        lat, lon, disp = geocode(city)
-        if not lat:
-            st.error("Lokasi tidak dijumpai.")
-            st.stop()
-
-        with st.spinner("Mengambil bangunan dari Overpass…"):
+        with st.spinner("Fetching buildings from Overpass…"):
             elems = overpass_buildings(lat, lon, rad)
 
         nodes = {e["id"]:(e["lat"],e["lon"]) for e in elems if e["type"]=="node"}
@@ -162,31 +159,31 @@ if mode == "🎨 Peta Retro Bandar":
             fill=True, fill_color="#d29922", fill_opacity=1).add_to(m)
 
         st_folium(m, width="100%", height=560)
-        st.markdown(f"**{count}** bangunan dipaparkan · jejari **{rad}m** · {city.split(',')[0].upper()}")
+        st.markdown(f"**{count}** buildings rendered · radius **{rad}m** · `{lat:.4f}, {lon:.4f}`")
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 📍  MARKER MAP
 # ════════════════════════════════════════════════════════════════════════════════
-elif mode == "📍 Peta Penanda":
-    st.subheader("📍 Peta Penanda")
-    st.caption("Masukkan koordinat, nama tempat, atau muat naik CSV.")
+elif mode == "📍 Marker Map":
+    st.subheader("📍 Marker Map")
+    st.caption("Enter coordinates, place names, or upload a CSV.")
 
     col1, col2 = st.columns([1, 2])
     with col1:
-        method = st.radio("Kaedah Input", ["Koordinat Manual","Nama Tempat","Muat Naik CSV"])
+        method = st.radio("Input Method", ["Manual Coordinates","Place Name","Upload CSV"])
         markers = []
 
-        if method == "Koordinat Manual":
-            n = st.number_input("Bilangan titik", 1, 10, 3)
+        if method == "Manual Coordinates":
+            n = st.number_input("Number of points", 1, 10, 3)
             for i in range(int(n)):
                 a, b, c = st.columns([2,2,3])
                 lt = a.number_input(f"Lat {i+1}", value=3.139+i*0.02, format="%.4f", key=f"la{i}")
                 ln = b.number_input(f"Lon {i+1}", value=101.687+i*0.02, format="%.4f", key=f"lo{i}")
-                lb = c.text_input(f"Label {i+1}", value=f"Titik {i+1}", key=f"lb{i}")
+                lb = c.text_input(f"Label {i+1}", value=f"Point {i+1}", key=f"lb{i}")
                 markers.append({"lat":lt,"lon":ln,"label":lb})
 
-        elif method == "Nama Tempat":
-            raw = st.text_area("Nama tempat (satu baris satu)", "Kuala Lumpur\nPetronas Twin Towers\nBatu Caves", height=110)
+        elif method == "Place Name":
+            raw = st.text_area("Place names (one per line)", "Kuala Lumpur\nPetronas Twin Towers\nBatu Caves", height=110)
             for p in [l.strip() for l in raw.splitlines() if l.strip()]:
                 lt, ln, _ = geocode(p)
                 if lt: markers.append({"lat":lt,"lon":ln,"label":p})
@@ -200,8 +197,8 @@ elif mode == "📍 Peta Penanda":
                     for _, row in df.iterrows():
                         markers.append({"lat":row["lat"],"lon":row["lon"],"label":str(row.get(lc,""))})
 
-        color   = st.color_picker("Warna penanda", "#e06820")
-        cluster = st.checkbox("Pengelompokan", True)
+        color   = st.color_picker("Marker colour", "#e06820")
+        cluster = st.checkbox("Clustering", True)
 
     with col2:
         clat = sum(x["lat"] for x in markers)/len(markers) if markers else 3.139
@@ -221,16 +218,16 @@ elif mode == "📍 Peta Penanda":
         st_folium(m, width="100%", height=520)
         if markers:
             c1,c2,c3 = st.columns(3)
-            c1.metric("Penanda", len(markers))
+            c1.metric("Markers", len(markers))
             c2.metric("Lat span", f"{max(x['lat'] for x in markers)-min(x['lat'] for x in markers):.3f}°")
             c3.metric("Lon span", f"{max(x['lon'] for x in markers)-min(x['lon'] for x in markers):.3f}°")
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 🌍  CHOROPLETH
 # ════════════════════════════════════════════════════════════════════════════════
-elif mode == "🌍 Peta Koropleth":
-    st.subheader("🌍 Peta Koropleth")
-    st.caption("Muat naik CSV (country, value) atau guna data contoh.")
+elif mode == "🌍 Choropleth Map":
+    st.subheader("🌍 Choropleth Map")
+    st.caption("Upload a CSV (country, value) or use the built-in sample data.")
 
     col1, col2 = st.columns([1, 2.5])
     with col1:
@@ -241,9 +238,9 @@ elif mode == "🌍 Peta Koropleth":
                        "South Korea","India","Australia","United States","Brazil"],
             "value":  [88,76,71,95,64,59,42,38,82,93,87,70,91,96,68],
         })
-        vcol   = st.selectbox("Lajur nilai", [c for c in df.columns if c!="country"])
-        scheme = st.selectbox("Skema warna", ["YlOrRd","Blues","Greens","PuRd","Oranges"])
-        opa    = st.slider("Kelegapan", 0.1, 1.0, 0.7)
+        vcol   = st.selectbox("Value column", [c for c in df.columns if c!="country"])
+        scheme = st.selectbox("Colour scheme", ["YlOrRd","Blues","Greens","PuRd","Oranges"])
+        opa    = st.slider("Opacity", 0.1, 1.0, 0.7)
         st.dataframe(df[["country",vcol]].head(10), height=200, use_container_width=True)
 
     with col2:
@@ -256,41 +253,44 @@ elif mode == "🌍 Peta Koropleth":
         ch.geojson.add_child(folium.features.GeoJsonTooltip(["name"], labels=False))
         st_folium(m, width="100%", height=540)
         c1,c2,c3 = st.columns(3)
-        c1.metric("Negara", len(df))
-        c2.metric("Maks", df[vcol].max())
-        c3.metric("Purata", f"{df[vcol].mean():.1f}")
+        c1.metric("Countries", len(df))
+        c2.metric("Max", df[vcol].max())
+        c3.metric("Average", f"{df[vcol].mean():.1f}")
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 🛣️  ROUTE PLANNER
 # ════════════════════════════════════════════════════════════════════════════════
-elif mode == "🛣️ Perancang Laluan":
-    st.subheader("🛣️ Perancang Laluan")
-    st.caption("Masukkan 2–8 titik henti. Laluan dikira oleh OSRM.")
+elif mode == "🛣️ Route Planner":
+    st.subheader("🛣️ Route Planner")
+    st.caption("Enter 2–8 waypoints. Routes are calculated by OSRM.")
 
     col1, col2 = st.columns([1, 2.2])
     with col1:
-        n = st.number_input("Bilangan henti", 2, 8, 3)
-        defaults = ["Kuala Lumpur","Putrajaya","Cyberjaya","Shah Alam","Klang"]
-        stops = [st.text_input(
-            ("🏁" if i==0 else "🏆" if i==int(n)-1 else "📍")+f" Henti {i+1}",
-            value=defaults[i] if i<len(defaults) else "", key=f"s{i}")
-            for i in range(int(n))]
-        rcol  = st.color_picker("Warna laluan", "#e06820")
-        swpts = st.checkbox("Tunjuk penanda henti", True)
+        n = st.number_input("Number of stops", 2, 8, 3)
+        default_coords = [
+            (3.1390, 101.6869),
+            (2.9264, 101.6964),
+            (2.9213, 101.6559),
+            (3.0738, 101.5183),
+            (3.0449, 101.4428),
+        ]
+        stop_coords = []
+        for i in range(int(n)):
+            icon = "🏁" if i==0 else ("🏆" if i==int(n)-1 else "📍")
+            st.markdown(f"**{icon} Stop {i+1}**")
+            dlat, dlon = default_coords[i] if i < len(default_coords) else (3.1390, 101.6869)
+            c1s, c2s = st.columns(2)
+            slt = c1s.number_input("Lat", value=dlat, format="%.6f", key=f"slat{i}")
+            sln = c2s.number_input("Lon", value=dlon, format="%.6f", key=f"slon{i}")
+            stop_coords.append((slt, sln))
+        rcol  = st.color_picker("Route colour", "#e06820")
+        swpts = st.checkbox("Show waypoint markers", True)
 
     with col2:
         coords, resolved = [], []
-        for s in stops:
-            s = s.strip()
-            if not s: continue
-            parts = s.split(",")
-            if len(parts)==2:
-                try:
-                    lt,ln=float(parts[0]),float(parts[1])
-                    coords.append((lt,ln)); resolved.append({"name":s,"lat":lt,"lon":ln}); continue
-                except ValueError: pass
-            lt,ln,_ = geocode(s)
-            if lt: coords.append((lt,ln)); resolved.append({"name":s,"lat":lt,"lon":ln})
+        for i, (slt, sln) in enumerate(stop_coords):
+            coords.append((slt, sln))
+            resolved.append({"name": f"Stop {i+1}", "lat": slt, "lon": sln})
 
         center = coords[0] if coords else (3.139,101.687)
         m = folium.Map(location=list(center), zoom_start=zoom, tiles=tile_layer)
@@ -303,49 +303,49 @@ elif mode == "🛣️ Perancang Laluan":
                 from folium.plugins import AntPath
                 AntPath(rt, weight=3, color="#fff", opacity=0.4, delay=800).add_to(m)
             else:
-                st.warning("OSRM tidak dapat mengira laluan.")
+                st.warning("OSRM could not compute a route.")
         if swpts:
             for i,pt in enumerate(resolved):
                 ic = "green" if i==0 else ("red" if i==len(resolved)-1 else "blue")
-                folium.Marker([pt["lat"],pt["lon"]], tooltip=f"Henti {i+1}: {pt['name']}",
+                folium.Marker([pt["lat"],pt["lon"]], tooltip=f"Stop {i+1}: {pt['name']}",
                     icon=folium.Icon(color=ic, icon="map-marker", prefix="fa")).add_to(m)
         st_folium(m, width="100%", height=500)
         c1,c2,c3 = st.columns(3)
-        c1.metric("Titik henti", len(resolved))
-        c2.metric("Jarak", f"{dk or '—'} km")
-        c3.metric("Masa pandu", f"{dm or '—'} min")
+        c1.metric("Waypoints", len(resolved))
+        c2.metric("Distance", f"{dk or '—'} km")
+        c3.metric("Drive time", f"{dm or '—'} min")
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 🔍  POI EXPLORER
 # ════════════════════════════════════════════════════════════════════════════════
 else:
-    st.subheader("🔍 Penjelajah POI")
-    st.caption("Cari kemudahan berdekatan menggunakan Overpass API (OSM).")
+    st.subheader("🔍 POI Explorer")
+    st.caption("Find nearby amenities using the Overpass API (OSM).")
 
     AMENITIES = {
-        "🍽️ Restoran":"restaurant","☕ Kafe":"cafe","🏥 Hospital":"hospital",
-        "🏦 Bank / ATM":"bank","⛽ Stesen Minyak":"fuel","🏫 Sekolah":"school",
-        "🏛️ Rumah Ibadat":"place_of_worship","🅿️ Tempat Letak Kereta":"parking",
-        "🏪 Pasar Raya":"supermarket","💊 Farmasi":"pharmacy",
+        "🍽️ Restaurant":"restaurant","☕ Cafe":"cafe","🏥 Hospital":"hospital",
+        "🏦 Bank / ATM":"bank","⛽ Fuel Station":"fuel","🏫 School":"school",
+        "🏛️ Place of Worship":"place_of_worship","🅿️ Parking":"parking",
+        "🏪 Supermarket":"supermarket","💊 Pharmacy":"pharmacy",
     }
     col1, col2 = st.columns([1, 2.2])
     with col1:
-        loc   = st.text_input("Lokasi pusat", "Kuala Lumpur City Centre")
-        rad   = st.slider("Jejari (m)", 200, 5000, 1000, 100)
-        amlbl = st.selectbox("Jenis kemudahan", list(AMENITIES.keys()))
-        pcol  = st.color_picker("Warna POI", "#3fb950")
+        st.markdown("**📍 Centre Coordinates**")
+        lat  = st.number_input("Latitude", value=3.1570, format="%.6f", key="poi_lat")
+        lon  = st.number_input("Longitude", value=101.7123, format="%.6f", key="poi_lon")
+        rad   = st.slider("Radius (m)", 200, 5000, 1000, 100)
+        amlbl = st.selectbox("Amenity type", list(AMENITIES.keys()))
+        pcol  = st.color_picker("POI colour", "#3fb950")
 
     with col2:
-        lat, lon, _ = geocode(loc)
-        if not lat: lat, lon = 3.157, 101.712
 
         m = folium.Map(location=[lat,lon], zoom_start=zoom, tiles=tile_layer)
         folium.Circle([lat,lon], radius=rad, color="#58a6ff",
             fill=True, fill_opacity=0.07, weight=1.5).add_to(m)
-        folium.Marker([lat,lon], tooltip="Pusat carian",
+        folium.Marker([lat,lon], tooltip="Search centre",
             icon=folium.Icon(color="blue", icon="crosshairs", prefix="fa")).add_to(m)
 
-        with st.spinner(f"Mencari {amlbl}…"):
+        with st.spinner(f"Searching for {amlbl}…"):
             pois = overpass_pois(lat, lon, rad, AMENITIES[amlbl])
 
         from folium.plugins import MarkerCluster
@@ -360,13 +360,13 @@ else:
         st_folium(m, width="100%", height=500)
 
         c1,c2,c3 = st.columns(3)
-        c1.metric("POI dijumpai", len(pois))
-        c2.metric("Jejari", f"{rad}m")
-        c3.metric("Jenis", AMENITIES[amlbl])
+        c1.metric("POIs found", len(pois))
+        c2.metric("Radius", f"{rad}m")
+        c3.metric("Type", AMENITIES[amlbl])
 
         if pois:
             df_p = pd.DataFrame([{"Nama":p.get("tags",{}).get("name","—"),
                 "Lat":p["lat"],"Lon":p["lon"],"OSM ID":p["id"]} for p in pois])
-            with st.expander("📋 Jadual data POI"):
+            with st.expander("📋 POI data table"):
                 st.dataframe(df_p, use_container_width=True)
-            st.download_button("⬇️ Muat turun CSV", df_p.to_csv(index=False), "poi.csv", "text/csv")
+            st.download_button("⬇️ Download CSV", df_p.to_csv(index=False), "poi.csv", "text/csv")
